@@ -1,7 +1,7 @@
 #
 # Automatically generated make config: don't edit
-# Busybox version: 1.22.1
-# Mon Feb  3 01:04:09 2014
+# Busybox version: 1.23.0.git
+# Mon Feb  3 01:39:06 2014
 #
 CONFIG_HAVE_DOT_CONFIG=y
 
@@ -457,6 +457,7 @@ CONFIG_USE_BB_SHADOW=y
 # CONFIG_ADDUSER is not set
 # CONFIG_FEATURE_ADDUSER_LONG_OPTIONS is not set
 # CONFIG_FEATURE_CHECK_NAMES is not set
+CONFIG_LAST_ID=0
 CONFIG_FIRST_SYSTEM_ID=0
 CONFIG_LAST_SYSTEM_ID=0
 # CONFIG_ADDGROUP is not set
