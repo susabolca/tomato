@@ -999,10 +999,10 @@ static void client_background(void)
 //usage:#else
 //usage:# define IF_UDHCP_VERBOSE(...)
 //usage:#endif
-//usage:#define udhcpc_trivial_usage
+//usage:#define udhcpc_old_trivial_usage
 //usage:       "[-fbnq"IF_UDHCP_VERBOSE("v")"oCRB] [-i IFACE] [-r IP] [-s PROG] [-p PIDFILE]\n"
 //usage:       "	[-H HOSTNAME] [-V VENDOR] [-x OPT:VAL]... [-O OPT]..." IF_FEATURE_UDHCP_PORT(" [-P N]")
-//usage:#define udhcpc_full_usage "\n"
+//usage:#define udhcpc_old_full_usage "\n"
 //usage:	IF_LONG_OPTS(
 //usage:     "\n	-i,--interface IFACE	Interface to use (default eth0)"
 //usage:     "\n	-p,--pidfile FILE	Create pidfile"
@@ -1082,7 +1082,6 @@ static void client_background(void)
 //usage:     "\nSignals:"
 //usage:     "\n	USR1	Renew current lease"
 //usage:     "\n	USR2	Release current lease"
-
 
 int udhcpc_main(int argc, char **argv) MAIN_EXTERNALLY_VISIBLE;
 int udhcpc_main(int argc UNUSED_PARAM, char **argv)

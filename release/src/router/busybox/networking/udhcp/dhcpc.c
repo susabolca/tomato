@@ -63,7 +63,6 @@ static const char udhcpc_longopts[] ALIGN1 =
 	"request\0"        Required_argument "r"
 	"script\0"         Required_argument "s"
 	"timeout\0"        Required_argument "T"
-	"version\0"        No_argument       "v"
 	"retries\0"        Required_argument "t"
 	"tryagain\0"       Required_argument "A"
 	"syslog\0"         No_argument       "S"
