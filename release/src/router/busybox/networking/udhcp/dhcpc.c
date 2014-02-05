@@ -1177,7 +1177,7 @@ static void client_background(void)
 //usage:#define udhcpc_trivial_usage
 //usage:       "[-fbq"IF_UDHCP_VERBOSE("v")IF_FEATURE_UDHCPC_ARPING("a")"RB] [-t N] [-T SEC] [-A SEC/-n]\n"
 //usage:       "	[-i IFACE]"IF_FEATURE_UDHCP_PORT(" [-P PORT]")" [-s PROG] [-p PIDFILE]\n"
-//usage:       "	[-oC] [-r IP] [-V VENDOR] [-F NAME] [-x OPT:VAL]... [-O OPT]..."
+//usage:       "	[-oC] [-r IP] [-V VENDOR] [-F NAME] [-H HOSTNAME] [-x OPT:VAL]... [-O OPT]..."
 //usage:#define udhcpc_full_usage "\n"
 //usage:	IF_LONG_OPTS(
 //usage:     "\n	-i,--interface IFACE	Interface to use (default eth0)"
@@ -1210,6 +1210,7 @@ static void client_background(void)
 //usage:     "\n				-x lease:3600 - option 51 (lease time)"
 //usage:     "\n				-x 0x3d:0100BEEFC0FFEE - option 61 (client id)"
 //usage:     "\n	-F,--fqdn NAME		Ask server to update DNS mapping for NAME"
+//usage:     "\n	-H,-h,--hostname NAME	Send NAME as client hostname (deprecated)"
 //usage:     "\n	-V,--vendorclass VENDOR	Vendor identifier (default 'udhcp VERSION')"
 //usage:     "\n	-C,--clientid-none	Don't send MAC as client identifier"
 //usage:	IF_UDHCP_VERBOSE(
@@ -1247,6 +1248,7 @@ static void client_background(void)
 //usage:     "\n			-x lease:3600 - option 51 (lease time)"
 //usage:     "\n			-x 0x3d:0100BEEFC0FFEE - option 61 (client id)"
 //usage:     "\n	-F NAME		Ask server to update DNS mapping for NAME"
+//usage:     "\n	-H,-h NAME	Send NAME as client hostname (deprecated)"
 //usage:     "\n	-V VENDOR	Vendor identifier (default 'udhcp VERSION')"
 //usage:     "\n	-C		Don't send MAC as client identifier"
 //usage:	IF_UDHCP_VERBOSE(
