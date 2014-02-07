@@ -100,8 +100,6 @@ int uniq_main(int argc UNUSED_PARAM, char **argv)
 
 			if (!old_line || strncmp(old_compare, cur_compare, max_chars)) {
 				break;
-			} else {
-				free(s1);
 			}
 
 			free(cur_line);
