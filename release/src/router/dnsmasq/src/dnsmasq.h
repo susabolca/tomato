@@ -115,7 +115,7 @@ extern int capget(cap_user_header_t header, cap_user_data_t data);
 #define LINUX_CAPABILITY_VERSION_2  0x20071026
 #define LINUX_CAPABILITY_VERSION_3  0x20080522
 
-#include <sys/prctl.h>
+#include <linux/prctl.h>
 #elif defined(HAVE_SOLARIS_NETWORK)
 #include <priv.h>
 #endif

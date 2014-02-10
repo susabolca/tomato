@@ -16,6 +16,10 @@
 
 #include "dnsmasq.h"
 
+// zzz
+#include <asm/unistd.h>
+_syscall5(int, prctl, int, a, int, b, int, c, int, d, int, e);
+
 struct daemon *daemon;
 
 static char *compile_opts = 
@@ -63,6 +67,9 @@ static void check_dns_listeners(fd_set *set, time_t now);
 static void sig_handler(int sig);
 static void async_event(int pipe, time_t now);
 static void fatal_event(struct event_desc *ev);
+
+void tomato_helper(time_t now);		// zzz
+void flush_lease_file(time_t now);	// zzz
 
 int main (int argc, char **argv)
 {
@@ -385,7 +392,7 @@ int main (int argc, char **argv)
 	    (1 << CAP_NET_ADMIN) | (1 << CAP_NET_RAW) | (1 << CAP_SETUID);
 	  
 	  /* Tell kernel to not clear capabilities when dropping root */
-	  if (capset(hdr, data) == -1 || prctl(PR_SET_KEEPCAPS, 1) == -1)
+	  if (capset(hdr, data) == -1 || prctl(PR_SET_KEEPCAPS, 1, 0, 0, 0) == -1)
 	    bad_capabilities = errno;
 			  
 #elif defined(HAVE_SOLARIS_NETWORK)
@@ -441,7 +448,7 @@ int main (int argc, char **argv)
   
 #ifdef HAVE_LINUX_NETWORK
   if (daemon->options & OPT_DEBUG) 
-    prctl(PR_SET_DUMPABLE, 1);
+    prctl(PR_SET_DUMPABLE, 1, 0, 0, 0);
 #endif
 
   if (daemon->port == 0)
@@ -860,6 +867,8 @@ static void async_event(int pipe, time_t now)
 	break;
 
       case EVENT_REOPEN:
+	tomato_helper(now);	// zzz
+
 	/* Note: this may leave TCP-handling processes with the old file still open.
 	   Since any such process will die in CHILD_LIFETIME or probably much sooner,
 	   we leave them logging to the old file. */
@@ -887,6 +896,8 @@ static void async_event(int pipe, time_t now)
 	  }
 #endif
 	
+	flush_lease_file(now);	// zzz
+
 	if (daemon->lease_stream)
 	  fclose(daemon->lease_stream);
 
@@ -942,6 +953,7 @@ void poll_resolv(int force, int do_reload, time_t now)
 	      {
 		last_change = statbuf.st_mtime;
 		latest = res;
+		break;	// zzz - (~0 time?)
 	      }
 	  }
       }
