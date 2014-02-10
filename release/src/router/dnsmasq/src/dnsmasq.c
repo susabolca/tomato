@@ -30,6 +30,8 @@ static void sig_handler(int sig);
 static void async_event(int pipe, time_t now);
 static void fatal_event(struct event_desc *ev, char *msg);
 static int read_event(int fd, struct event_desc *evp, char **msg);
+void tomato_helper(time_t now);		// zzz
+void flush_lease_file(time_t now);	// zzz
 
 int main (int argc, char **argv)
 {
@@ -1190,6 +1192,8 @@ static void async_event(int pipe, time_t now)
 	break;
 
       case EVENT_REOPEN:
+	tomato_helper(now);	// zzz
+
 	/* Note: this may leave TCP-handling processes with the old file still open.
 	   Since any such process will die in CHILD_LIFETIME or probably much sooner,
 	   we leave them logging to the old file. */
@@ -1217,6 +1221,8 @@ static void async_event(int pipe, time_t now)
 	  }
 #endif
 	
+	flush_lease_file(now);	// zzz
+
 	if (daemon->lease_stream)
 	  fclose(daemon->lease_stream);
 
@@ -1272,6 +1278,7 @@ void poll_resolv(int force, int do_reload, time_t now)
 	      {
 		last_change = statbuf.st_mtime;
 		latest = res;
+		break;	// zzz - (~0 time?)
 	      }
 	  }
       }
