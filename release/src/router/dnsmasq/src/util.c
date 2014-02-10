@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2011 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2014 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,24 +28,12 @@
 #include <idna.h>
 #endif
 
-#ifdef HAVE_ARC4RANDOM
-void rand_init(void)
-{
-  return;
-}
-
-unsigned short rand16(void)
-{
-   return (unsigned short) (arc4random() >> 15);
-}
-
-#else
-
 /* SURF random number generator */
 
 static u32 seed[32];
 static u32 in[12];
 static u32 out[8];
+static int outleft = 0;
 
 void rand_init()
 {
@@ -83,18 +71,31 @@ static void surf(void)
 
 unsigned short rand16(void)
 {
-  static int outleft = 0;
-
-  if (!outleft) {
-    if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
-    surf();
-    outleft = 8;
-  }
-
+  if (!outleft) 
+    {
+      if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
+      surf();
+      outleft = 8;
+    }
+  
   return (unsigned short) out[--outleft];
 }
 
-#endif
+u64 rand64(void)
+{
+  static int outleft = 0;
+
+  if (outleft < 2)
+    {
+      if (!++in[0]) if (!++in[1]) if (!++in[2]) ++in[3];
+      surf();
+      outleft = 8;
+    }
+  
+  outleft -= 2;
+
+  return (u64)out[outleft+1] + (((u64)out[outleft]) << 32);
+}
 
 static int check_name(char *in)
 {
@@ -108,10 +109,10 @@ static int check_name(char *in)
   
   if (in[l-1] == '.')
     {
-      if (l == 1) return 0;
       in[l-1] = 0;
+      nowhite = 1;
     }
-  
+
   for (; (c = *in); in++)
     {
       if (c == '.')
@@ -142,17 +143,20 @@ static int check_name(char *in)
 int legal_hostname(char *name)
 {
   char c;
+  int first;
 
   if (!check_name(name))
     return 0;
 
-  for (; (c = *name); name++)
+  for (first = 1; (c = *name); name++, first = 0)
     /* check for legal char a-z A-Z 0-9 - _ . */
     {
       if ((c >= 'A' && c <= 'Z') ||
 	  (c >= 'a' && c <= 'z') ||
-	  (c >= '0' && c <= '9') ||
-	  c == '-' || c == '_')
+	  (c >= '0' && c <= '9'))
+	continue;
+
+      if (!first && (c == '-' || c == '_'))
 	continue;
       
       /* end of hostname part */
@@ -280,7 +284,7 @@ int sa_len(union mysockaddr *addr)
 }
 
 /* don't use strcasecmp and friends here - they may be messed up by LOCALE */
-int hostname_isequal(char *a, char *b)
+int hostname_isequal(const char *a, const char *b)
 {
   unsigned int c1, c2;
   
@@ -319,6 +323,48 @@ int is_same_net(struct in_addr a, struct in_addr b, struct in_addr mask)
 {
   return (a.s_addr & mask.s_addr) == (b.s_addr & mask.s_addr);
 } 
+
+#ifdef HAVE_IPV6
+int is_same_net6(struct in6_addr *a, struct in6_addr *b, int prefixlen)
+{
+  int pfbytes = prefixlen >> 3;
+  int pfbits = prefixlen & 7;
+
+  if (memcmp(&a->s6_addr, &b->s6_addr, pfbytes) != 0)
+    return 0;
+
+  if (pfbits == 0 ||
+      (a->s6_addr[pfbytes] >> (8 - pfbits) == b->s6_addr[pfbytes] >> (8 - pfbits)))
+    return 1;
+
+  return 0;
+}
+
+/* return least signigicant 64 bits if IPv6 address */
+u64 addr6part(struct in6_addr *addr)
+{
+  int i;
+  u64 ret = 0;
+
+  for (i = 8; i < 16; i++)
+    ret = (ret << 8) + addr->s6_addr[i];
+
+  return ret;
+}
+
+void setaddr6part(struct in6_addr *addr, u64 host)
+{
+  int i;
+
+  for (i = 15; i >= 8; i--)
+    {
+      addr->s6_addr[i] = host;
+      host = host >> 8;
+    }
+}
+
+#endif
+ 
 
 /* returns port number from address */
 int prettyprint_addr(union mysockaddr *addr, char *buf)
@@ -384,7 +430,7 @@ int parse_hex(char *in, unsigned char *out, int maxlen,
   
   while (maxlen == -1 || i < maxlen)
     {
-      for (r = in; *r != 0 && *r != ':' && *r != '-'; r++)
+      for (r = in; *r != 0 && *r != ':' && *r != '-' && *r != ' '; r++)
 	if (*r != '*' && !isxdigit((unsigned char)*r))
 	  return -1;
       
@@ -402,12 +448,29 @@ int parse_hex(char *in, unsigned char *out, int maxlen,
 	  else
 	    {
 	      *r = 0;
-	      mask = mask << 1;
 	      if (strcmp(in, "*") == 0)
-		mask |= 1;
+		{
+		  mask = (mask << 1) | 1;
+		  i++;
+		}
 	      else
-		out[i] = strtol(in, NULL, 16);
-	      i++;
+		{
+		  int j, bytes = (1 + (r - in))/2;
+		  for (j = 0; j < bytes; j++)
+		    { 
+		      char sav = sav;
+		      if (j < bytes - 1)
+			{
+			  sav = in[(j+1)*2];
+			  in[(j+1)*2] = 0;
+			}
+		      out[i] = strtol(&in[j*2], NULL, 16);
+		      mask = mask << 1;
+		      i++;
+		      if (j < bytes - 1)
+			in[(j+1)*2] = sav;
+		    }
+		}
 	    }
 	}
       in = r+1;
@@ -418,6 +481,66 @@ int parse_hex(char *in, unsigned char *out, int maxlen,
 
   return i;
 }
+
+#ifdef HAVE_DNSSEC
+static int charval(char c)
+{
+  if (c >= 'A' && c <= 'Z')
+    return c - 'A';
+  
+  if (c >= 'a' && c <= 'z')
+    return c - 'a' + 26;
+
+  if (c >= '0' && c <= '9')
+    return c - '0' + 52;
+
+  if (c == '+')
+    return 62;
+  
+  if (c == '/')
+    return 63;
+
+  if (c == '=')
+    return -1;
+
+  return -2;
+}
+
+int parse_base64(char *in, char *out)
+{
+  char *p = out;
+  int i, val[4];
+
+  while (*in)
+    {
+      for (i = 0; i < 4; i++)
+	{ 
+	  while (*in == ' ') 
+	    in++;
+	  if (*in == 0)
+	    return -1;
+	  if ((val[i] = charval(*in++)) == -2)
+	    return -1;
+	}
+          
+      while (*in == ' ') 
+	in++;
+      
+      if (val[1] == -1)
+	return -1; /* too much padding */
+      
+      *p++ = (val[0] << 2) | (val[1] >> 4);
+      
+      if (val[2] != -1)
+	*p++ = (val[1] << 4) | ( val[2] >> 2);
+
+      if (val[3] != -1)
+	*p++ = (val[2] << 6) | val[3];
+    }
+
+  return p - out;
+}
+#endif
 
 /* return 0 for no match, or (no matched octets) + 1 */
 int memcmp_masked(unsigned char *a, unsigned char *b, int len, unsigned int mask)
@@ -483,7 +606,7 @@ void bump_maxfd(int fd, int *max)
 int retry_send(void)
 {
    struct timespec waiter;
-   if (errno == EAGAIN)
+   if (errno == EAGAIN || errno == EWOULDBLOCK)
      {
        waiter.tv_sec = 0;
        waiter.tv_nsec = 10000;
@@ -522,3 +645,20 @@ int read_write(int fd, unsigned char *packet, int size, int rw)
   return 1;
 }
 
+/* Basically match a string value against a wildcard pattern.  */
+int wildcard_match(const char* wildcard, const char* match)
+{
+  while (*wildcard && *match)
+    {
+      if (*wildcard == '*')
+        return 1;
+
+      if (*wildcard != *match)
+        return 0; 
+
+      ++wildcard;
+      ++match;
+    }
+
+  return *wildcard == *match;
+}

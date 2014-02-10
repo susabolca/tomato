@@ -2,10 +2,31 @@
 
 search=$1
 shift
+pkg=$1
+shift
+op=$1
+shift
 
-if grep "^\#.*define.*$search" config.h 2>&1 >/dev/null || \
-   grep $search 2>&1 >/dev/null ; then
-  exec $*
+in=`cat`
+
+if grep "^\#[[:space:]]*define[[:space:]]*$search" config.h >/dev/null 2>&1 || \
+    echo $in | grep $search >/dev/null 2>&1; then
+
+    if [ $op = "--copy" ]; then
+	pkg="$*"
+    else
+	pkg=`$pkg $op $*` 
+    fi
+
+    if grep "^\#[[:space:]]*define[[:space:]]*${search}_STATIC" config.h >/dev/null 2>&1 || \
+	echo $in | grep ${search}_STATIC >/dev/null 2>&1; then
+	if [ $op = "--libs" ] || [ $op = "--copy" ]; then
+	    echo "-Wl,-Bstatic $pkg -Wl,-Bdynamic"
+	else
+	    echo "$pkg" 
+	fi
+    else
+	echo "$pkg"
+    fi
 fi
-
 
