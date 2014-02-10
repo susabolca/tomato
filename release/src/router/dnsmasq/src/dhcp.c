@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2010 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2011 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,6 @@
 #ifdef HAVE_DHCP
 
 struct iface_param {
-  struct in_addr relay, primary;
   struct dhcp_context *current;
   int ind;
 };
@@ -54,7 +53,7 @@ static int make_fd(int port)
   /* When bind-interfaces is set, there might be more than one dnmsasq
      instance binding port 67. That's OK if they serve different networks.
      Need to set REUSEADDR to make this posible, or REUSEPORT on *BSD. */
-  if (daemon->options & OPT_NOWILD)
+  if (option_bool(OPT_NOWILD))
     {
 #ifdef SO_REUSEPORT
       int rc = setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &oneopt, sizeof(oneopt));
@@ -96,7 +95,7 @@ void dhcp_init(void)
      we drop root. Also, set buffer size small, to avoid wasting
      kernel buffers */
   
-  if (daemon->options & OPT_NO_PING)
+  if (option_bool(OPT_NO_PING))
     daemon->dhcp_icmp_fd = -1;
   else if ((daemon->dhcp_icmp_fd = make_icmp_sock()) == -1 ||
 	   setsockopt(daemon->dhcp_icmp_fd, SOL_SOCKET, SO_RCVBUF, &oneopt, sizeof(oneopt)) == -1 )
@@ -269,8 +268,6 @@ void dhcp_packet(time_t now, int pxe_fd)
   for (context = daemon->dhcp; context; context = context->next)
     context->current = context;
   
-  parm.relay = mess->giaddr;
-  parm.primary = iface_addr;
   parm.current = NULL;
   parm.ind = iface_index;
 
@@ -295,11 +292,11 @@ void dhcp_packet(time_t now, int pxe_fd)
 	}
     } 
 
-  if (!iface_enumerate(&parm, complete_context, NULL))
+  if (!iface_enumerate(AF_INET, &parm, complete_context))
     return;
   lease_prune(NULL, now); /* lose any expired leases */
   iov.iov_len = dhcp_reply(parm.current, ifr.ifr_name, iface_index, (size_t)sz, 
-			   now, unicast_dest, &is_inform, pxe_fd);
+			   now, unicast_dest, &is_inform, pxe_fd, iface_addr);
   lease_update_file(now);
   lease_update_dns();
     
@@ -448,38 +445,27 @@ static int complete_context(struct in_addr local, int if_index,
  	context->netmask = netmask;
       }
       
-      if (context->netmask.s_addr)
+      if (context->netmask.s_addr != 0 &&
+	  is_same_net(local, context->start, context->netmask) &&
+	  is_same_net(local, context->end, context->netmask))
 	{
-	  if (is_same_net(local, context->start, context->netmask) &&
-	      is_same_net(local, context->end, context->netmask))
+	  /* link it onto the current chain if we've not seen it before */
+	  if (if_index == param->ind && context->current == context)
 	    {
-	      /* link it onto the current chain if we've not seen it before */
-	      if (if_index == param->ind && context->current == context)
-		{
-		  context->router = local;
-		  context->local = local;
-		  context->current = param->current;
-		  param->current = context;
-		}
-	      
-	      if (!(context->flags & CONTEXT_BRDCAST))
-		{
-		  if (is_same_net(broadcast, context->start, context->netmask))
-		    context->broadcast = broadcast;
-		  else 
-		    context->broadcast.s_addr  = context->start.s_addr | ~context->netmask.s_addr;
-		}
-	    }	
-	  else if (param->relay.s_addr && is_same_net(param->relay, context->start, context->netmask))
+	      context->router = local;
+	      context->local = local;
+	      context->current = param->current;
+	      param->current = context;
+	    }
+	  
+	  if (!(context->flags & CONTEXT_BRDCAST))
 	    {
-	      context->router = param->relay;
-	      context->local = param->primary;
-	      /* fill in missing broadcast addresses for relayed ranges */
-	      if (!(context->flags & CONTEXT_BRDCAST))
+	      if (is_same_net(broadcast, context->start, context->netmask))
+		context->broadcast = broadcast;
+	      else 
 		context->broadcast.s_addr  = context->start.s_addr | ~context->netmask.s_addr;
 	    }
-
-	}
+	}		
     }
 
   return 1;
@@ -505,7 +491,7 @@ struct dhcp_context *address_available(struct dhcp_context *context,
       start = ntohl(tmp->start.s_addr);
       end = ntohl(tmp->end.s_addr);
 
-      if (!(tmp->flags & CONTEXT_STATIC) &&
+      if (!(tmp->flags & (CONTEXT_STATIC | CONTEXT_PROXY)) &&
 	  addr >= start &&
 	  addr <= end &&
 	  match_netid(tmp->filter, netids, 1))
@@ -540,7 +526,8 @@ struct dhcp_context *narrow_context(struct dhcp_context *context,
       if (!tmp)
 	for (tmp = context; tmp; tmp = tmp->current)
 	  if (match_netid(tmp->filter, netids, 1) &&
-	      is_same_net(taddr, tmp->start, tmp->netmask))
+	      is_same_net(taddr, tmp->start, tmp->netmask) &&
+	      !(tmp->flags & CONTEXT_PROXY))
 	    break;
     }
   
@@ -626,16 +613,22 @@ int address_allocate(struct dhcp_context *context,
   
   for (pass = 0; pass <= 1; pass++)
     for (c = context; c; c = c->current)
-      if (c->flags & CONTEXT_STATIC)
+      if (c->flags & (CONTEXT_STATIC | CONTEXT_PROXY))
 	continue;
       else if (!match_netid(c->filter, netids, pass))
 	continue;
       else
 	{
-	  /* pick a seed based on hwaddr then iterate until we find a free address. */
-	  start.s_addr = addr.s_addr = 
-	    htonl(ntohl(c->start.s_addr) + 
-		  ((j + c->addr_epoch) % (1 + ntohl(c->end.s_addr) - ntohl(c->start.s_addr))));
+	  if (option_bool(OPT_CONSEC_ADDR))
+	    /* seed is largest extant lease addr in this context */
+	    start = lease_find_max_addr(c);
+	  else
+	    /* pick a seed based on hwaddr */
+	    start.s_addr = htonl(ntohl(c->start.s_addr) + 
+				 ((j + c->addr_epoch) % (1 + ntohl(c->end.s_addr) - ntohl(c->start.s_addr))));
+
+	  /* iterate until we find a free address. */
+	  addr = start;
 	  
 	  do {
 	    /* eliminate addresses in use by the server. */
@@ -660,9 +653,6 @@ int address_allocate(struct dhcp_context *context,
 		
 		*addrp = addr;
 
-		if (daemon->options & OPT_NO_PING)
-		  return 1;
-		
 		/* check if we failed to ping addr sometime in the last
 		   PING_CACHE_TIME seconds. If so, assume the same situation still exists.
 		   This avoids problems when a stupid client bangs
@@ -672,33 +662,51 @@ int address_allocate(struct dhcp_context *context,
 		for (count = 0, r = daemon->ping_results; r; r = r->next)
 		  if (difftime(now, r->time) >  (float)PING_CACHE_TIME)
 		    victim = r; /* old record */
-		  else if (++count == max || r->addr.s_addr == addr.s_addr)
-		    return 1;
-		    
-		if (icmp_ping(addr))
-		  /* address in use: perturb address selection so that we are
-		     less likely to try this address again. */
-		  c->addr_epoch++;
-		else
+		  else 
+		    {
+		      count++;
+		      if (r->addr.s_addr == addr.s_addr)
+			{
+			  /* consec-ip mode: we offered this address for another client
+			     (different hash) recently, don't offer it to this one. */
+			  if (option_bool(OPT_CONSEC_ADDR) && r->hash != j)
+			    break;
+			  
+			  return 1;
+			}
+		    }
+
+		if (!r) 
 		  {
-		    /* at this point victim may hold an expired record */
-		    if (!victim)
+		    if ((count < max) && !option_bool(OPT_NO_PING) && icmp_ping(addr))
 		      {
-			if ((victim = whine_malloc(sizeof(struct ping_result))))
+			/* address in use: perturb address selection so that we are
+			   less likely to try this address again. */
+			if (!option_bool(OPT_CONSEC_ADDR))
+			  c->addr_epoch++;
+		      }
+		    else
+		      {
+			/* at this point victim may hold an expired record */
+			if (!victim)
 			  {
-			    victim->next = daemon->ping_results;
-			    daemon->ping_results = victim;
+			    if ((victim = whine_malloc(sizeof(struct ping_result))))
+			      {
+				victim->next = daemon->ping_results;
+				daemon->ping_results = victim;
+			      }
 			  }
+			
+			/* record that this address is OK for 30s 
+			   without more ping checks */
+			if (victim)
+			  {
+			    victim->addr = addr;
+			    victim->time = now;
+			    victim->hash = j;
+			  }
+			return 1;
 		      }
-		    
-		    /* record that this address is OK for 30s 
-		       without more ping checks */
-		    if (victim)
-		      {
-			victim->addr = addr;
-			victim->time = now;
-		      }
-		    return 1;
 		  }
 	      }
 
@@ -709,6 +717,7 @@ int address_allocate(struct dhcp_context *context,
 	    
 	  } while (addr.s_addr != start.s_addr);
 	}
+
   return 0;
 }
 

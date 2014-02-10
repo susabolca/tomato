@@ -1,4 +1,4 @@
-/* dnsmasq is Copyright (c) 2000-2010 Simon Kelley
+/* dnsmasq is Copyright (c) 2000-2011 Simon Kelley
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ void lease_init(time_t now)
  
   leases_left = daemon->dhcp_max;
 
-  if (daemon->options & OPT_LEASE_RO)
+  if (option_bool(OPT_LEASE_RO))
     {
       /* run "<lease_change_script> init" once to get the
 	 initial state of the database. If leasefile-ro is
@@ -186,14 +186,10 @@ void lease_update_file(time_t now)
       
       for (lease = leases; lease; lease = lease->next)
 	{
-#if 1	// zzz
-	  ourprintf(&err, "%lu ", (unsigned long)lease->expires - now);
-#else
 #ifdef HAVE_BROKEN_RTC
 	  ourprintf(&err, "%u ", lease->length);
 #else
 	  ourprintf(&err, "%lu ", (unsigned long)lease->expires);
-#endif
 #endif
 	  if (lease->hwaddr_type != ARPHRD_ETHER || lease->hwaddr_len == 0) 
 	    ourprintf(&err, "%.2x-", lease->hwaddr_type);
@@ -258,7 +254,7 @@ void lease_update_dns(void)
 	  if (lease->fqdn)
 	    cache_add_dhcp_entry(lease->fqdn, &lease->addr, lease->expires);
 	     
-	  if (!(daemon->options & OPT_DHCP_FQDN) && lease->hostname)
+	  if (!option_bool(OPT_DHCP_FQDN) && lease->hostname)
 	    cache_add_dhcp_entry(lease->hostname, &lease->addr, lease->expires);
 	}
       
@@ -327,6 +323,21 @@ struct dhcp_lease *lease_find_by_addr(struct in_addr addr)
   return NULL;
 }
 
+/* Find largest assigned address in context */
+struct in_addr lease_find_max_addr(struct dhcp_context *context)
+{
+  struct dhcp_lease *lease;
+  struct in_addr addr = context->start;
+  
+  if (!(context->flags & (CONTEXT_STATIC | CONTEXT_PROXY)))
+    for (lease = leases; lease; lease = lease->next)
+      if (((unsigned)ntohl(lease->addr.s_addr)) > ((unsigned)ntohl(context->start.s_addr)) &&
+	  ((unsigned)ntohl(lease->addr.s_addr)) <= ((unsigned)ntohl(context->end.s_addr)) &&
+	  ((unsigned)ntohl(lease->addr.s_addr)) > ((unsigned)ntohl(addr.s_addr)))
+	addr = lease->addr;
+  
+  return addr;
+}
 
 struct dhcp_lease *lease_allocate(struct in_addr addr)
 {
@@ -474,7 +485,7 @@ void lease_set_hostname(struct dhcp_lease *lease, char *name, int auth)
       /* Depending on mode, we check either unqualified name or FQDN. */
       for (lease_tmp = leases; lease_tmp; lease_tmp = lease_tmp->next)
 	{
-	  if (daemon->options & OPT_DHCP_FQDN)
+	  if (option_bool(OPT_DHCP_FQDN))
 	    {
 	      if (!new_fqdn || !lease_tmp->fqdn || !hostname_isequal(lease_tmp->fqdn, new_fqdn) )
 		continue;
@@ -538,7 +549,7 @@ int do_script_run(time_t now)
 #ifdef HAVE_DBUS
   /* If we're going to be sending DBus signals, but the connection is not yet up,
      delay everything until it is. */
-  if ((daemon->options & OPT_DBUS) && !daemon->dbus)
+  if (option_bool(OPT_DBUS) && !daemon->dbus)
     return 0;
 #endif
 
@@ -590,7 +601,7 @@ int do_script_run(time_t now)
   
   for (lease = leases; lease; lease = lease->next)
     if (lease->new || lease->changed || 
-	(lease->aux_changed && (daemon->options & OPT_LEASE_RO)))
+	(lease->aux_changed && option_bool(OPT_LEASE_RO)))
       {
 #ifdef HAVE_SCRIPT
 	queue_script(lease->new ? ACTION_ADD : ACTION_OLD, lease, 
@@ -611,51 +622,9 @@ int do_script_run(time_t now)
 
   return 0; /* nothing to do */
 }
+
+#endif
 	  
 
       
 
-void tomato_helper(time_t now)
-{
-	FILE *f;
-	struct in_addr ia;
-	char buf[64];
-	struct dhcp_lease *lease;
-
-	// if delete exists...
-	if ((f = fopen("/var/tmp/dhcp/delete", "r")) != NULL) {
-		while (fgets(buf, sizeof(buf), f)) {
-			ia.s_addr = inet_addr(buf);
-			lease = lease_find_by_addr(ia);
-			if (lease) {
-				lease_prune(lease, 0);
-				lease_update_file(now);
-			}
-		}
-		fclose(f);
-		unlink("/var/tmp/dhcp/delete");
-	}
-
-	// dump the leases file
-	if ((f = fopen("/var/tmp/dhcp/leases.!", "w")) != NULL) {
-		for (lease = leases; lease; lease = lease->next) {
-			if (lease->hwaddr_type == ARPHRD_ETHER) {
-				fprintf(f, "%lu %02X:%02X:%02X:%02X:%02X:%02X %s %s\n",
-					lease->expires - now,
-					lease->hwaddr[0], lease->hwaddr[1], lease->hwaddr[2], lease->hwaddr[3], lease->hwaddr[4], lease->hwaddr[5],
-					inet_ntoa(lease->addr),
-					((lease->hostname) && (strlen(lease->hostname) > 0)) ? lease->hostname : "*");
-			}
-		}
-		fclose(f);
-		rename("/var/tmp/dhcp/leases.!", "/var/tmp/dhcp/leases");
-	}
-}
-
-void flush_lease_file(time_t now)
-{
-	file_dirty = 1;
-	lease_update_file(now);
-}
-
-#endif
