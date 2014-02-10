@@ -113,6 +113,8 @@ struct myoption {
 #define LOPT_INCR_ADDR 302
 #define LOPT_CONNTRACK 303
 
+#define LOPT_QUIET_DHCP 400
+
 #ifdef HAVE_GETOPT_LONG
 static const struct option opts[] =  
 #else
@@ -229,6 +231,7 @@ static const struct myoption opts[] =
     { "proxy-dnssec", 0, 0, LOPT_DNSSEC },
     { "dhcp-sequential-ip", 0, 0,  LOPT_INCR_ADDR },
     { "conntrack", 0, 0, LOPT_CONNTRACK },
+    { "quiet-dhcp", 0, 0, LOPT_QUIET_DHCP },
     { NULL, 0, 0, 0 }
   };
 
@@ -353,6 +356,7 @@ static struct {
   { LOPT_DNSSEC, OPT_DNSSEC, NULL, gettext_noop("Proxy DNSSEC validation results from upstream nameservers."), NULL },
   { LOPT_INCR_ADDR, OPT_CONSEC_ADDR, NULL, gettext_noop("Attempt to allocate sequential IP addresses to DHCP clients."), NULL },
   { LOPT_CONNTRACK, OPT_CONNTRACK, NULL, gettext_noop("Copy connection-track mark from queries to upstream connections."), NULL },
+  { LOPT_QUIET_DHCP, OPT_QUIET_DHCP, NULL, gettext_noop("Do not log DHCP packets."), NULL },
   { 0, 0, NULL, NULL, NULL }
 }; 
 

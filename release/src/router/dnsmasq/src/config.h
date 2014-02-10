@@ -162,7 +162,7 @@ NOTES:
 #define HAVE_DHCP
 #define HAVE_TFTP
 #define HAVE_SCRIPT
-/* #define HAVE_BROKEN_RTC */
+#define HAVE_BROKEN_RTC
 /* #define HAVE_DBUS */
 /* #define HAVE_IDN */
 /* #define HAVE_CONNTRACK */
