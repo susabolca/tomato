@@ -223,11 +223,9 @@ int FAST_FUNC udhcp_send_kernel_packet(struct dhcp_packet *dhcp_pkt,
 	}
 
 	udhcp_dump_packet(dhcp_pkt);
-
 	padding = minpkt ? DHCP_OPTIONS_BUFSIZE - 1 - udhcp_end_option(dhcp_pkt->options) : 0;  // zzz
 	if (padding > DHCP_SIZE - 300)
 		padding = DHCP_SIZE - 300;
-
 	result = safe_write(fd, dhcp_pkt, DHCP_SIZE - padding);
 	msg = "write";
  ret_close:

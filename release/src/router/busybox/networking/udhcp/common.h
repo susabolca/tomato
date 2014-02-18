@@ -75,7 +75,6 @@ struct BUG_bad_sizeof_struct_ip_udp_dhcp_packet {
 
 extern int minpkt;	// zzz
 
-
 /*** Options ***/
 
 enum {

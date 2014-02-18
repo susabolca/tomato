@@ -25,14 +25,7 @@
 #include "dhcpd.h"
 #include "dhcpc.h"
 
-#include <asm/types.h>
-/*#if (defined(__GLIBC__) && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 1) || defined(_NEWLIB_VERSION)
-# include <linux/if_packet.h>
-# include <netinet/if_ether.h>
-#else */
-# include <linux/if_packet.h>
-# include <linux/if_ether.h>
-/*#endif*/
+#include <netinet/if_ether.h>
 
 #ifndef __u16
 #define __u16 unsigned short
@@ -45,6 +38,7 @@
 #endif
 
 #include <linux/filter.h>
+#include <linux/if_packet.h>
 
 /* "struct client_config_t client_config" is in bb_common_bufsiz1 */
 
