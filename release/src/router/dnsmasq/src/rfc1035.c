@@ -917,8 +917,8 @@ int extract_addresses(struct dns_header *header, size_t qlen, char *name, time_t
       searched_soa = 1;
       ttl = find_soa(header, qlen, name, doctored);
 #ifdef HAVE_DNSSEC
-      if (*doctored)
-	secure = 0;
+      if (*doctored && secure)
+	return 0;
 #endif
     }
   
@@ -927,7 +927,7 @@ int extract_addresses(struct dns_header *header, size_t qlen, char *name, time_t
   
   for (i = ntohs(header->qdcount); i != 0; i--)
     {
-      int found = 0, cname_count = 10;
+      int found = 0, cname_count = CNAME_CHAIN;
       struct crec *cpp = NULL;
       int flags = RCODE(header) == NXDOMAIN ? F_NXDOMAIN : 0;
       int secflag = secure ?  F_DNSSECOK : 0;
@@ -988,9 +988,8 @@ int extract_addresses(struct dns_header *header, size_t qlen, char *name, time_t
 		      
 		      if (aqtype == T_CNAME)
 			{
-			  if (!cname_count--)
-			    return 0; /* looped CNAMES */
-			  secflag = 0; /* no longer DNSSEC */
+			  if (!cname_count-- || secure)
+			    return 0; /* looped CNAMES, or DNSSEC, which we can't cache. */
 			  goto cname_loop;
 			}
 		      
@@ -1242,7 +1241,7 @@ int check_for_local_domain(char *name, time_t now)
   struct ptr_record *ptr;
   struct naptr *naptr;
 
-  if ((crecp = cache_find_by_name(NULL, name, now, F_IPV4 | F_IPV6 | F_CNAME | F_NO_RR)) &&
+  if ((crecp = cache_find_by_name(NULL, name, now, F_IPV4 | F_IPV6 | F_CNAME | F_DS | F_NO_RR)) &&
       (crecp->flags & (F_HOSTS | F_DHCP | F_CONFIG)))
     return 1;
   
