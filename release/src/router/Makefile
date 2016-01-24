@@ -191,6 +191,8 @@ obj-$(TCONFIG_BT) += btgui
 obj-$(TCONFIG_BBT) += zlib
 #obj-$(TCONFIG_BBT) += libiconv
 
+obj-$(TCONFIG_LOY) += lrzsz
+
 obj-$(CONFIG_LINUX26) += hotplug2
 obj-$(CONFIG_LINUX26) += udevtrigger
 
@@ -2029,6 +2031,29 @@ comgt-install: comgt
 
 comgt-clean:
 	-@$(MAKE) -C comgt clean
+
+## Loy Changed.
+lrzsz/stamp-h1:
+	cd lrzsz && \
+	CC=$(CC) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
+	$(CONFIGURE) --target=mipsel-linux --prefix=/usr 
+	touch lrzsz/stamp-h1
+
+lrzsz: lrzsz/stamp-h1
+	@$(SEP)
+	$(MAKE) -C lrzsz $(PARALLEL_BUILD)
+
+lrzsz-clean:
+	-@$(MAKE) -C lrzsz clean
+	@rm -f lrzsz/stamp-h1
+
+lrzsz-install: lrzsz
+	@$(SEP)
+	install -d $(INSTALLDIR)/lrzsz/usr/bin
+	install -D lrzsz/src/lrz $(INSTALLDIR)/lrzsz/usr/bin/rz
+	install -D lrzsz/src/lsz $(INSTALLDIR)/lrzsz/usr/bin/sz
+	$(STRIP) -s $(INSTALLDIR)/lrzsz/usr/bin/rz
+	$(STRIP) -s $(INSTALLDIR)/lrzsz/usr/bin/sz
 
 #
 # Generic rules

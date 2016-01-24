@@ -201,3 +201,7 @@ config TCONFIG_CTF
 config TCONFIG_UFSD
 	bool "Paragon NTFS driver for Asus routers"
 	default n
+
+config TCONFIG_LOY
+	bool "LOY Custmized(Custmized Features by Loy.)"
+	default n

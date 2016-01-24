@@ -547,6 +547,10 @@ define RouterOptions
 		sed -i "/TCONFIG_CTF/d" $(1); \
 		echo "TCONFIG_CTF=y" >>$(1); \
 	fi; \
+	if [ "$(LOY)" = "y" ]; then \
+		sed -i "/TCONFIG_LOY/d" $(1); \
+		echo "TCONFIG_LOY=y" >>$(1); \
+	fi; \
 	)
 endef
 
@@ -941,6 +945,12 @@ ifeq ($(CONFIG_LINUX26),y)
 	@$(MAKE) bin OPENVPN=y NTFS=y BBEXTRAS=y USBEXTRAS=y EBTABLES=y MEDIASRV=y IPV6SUPP=y B=E BUILD_DESC="AIO" USB="USB" NOCAT=y BTCLIENT=y TR_EXTRAS=y NFS=y SNMP=y HFS=y DNSCRYPT=y UPS=y PPTPD=y TOR=y IPSEC=y RAID=y
 endif
 
+## Loy Changed
+l:
+ifeq ($(CONFIG_LINUX26),y)
+	@$(MAKE) bin OPENVPN=y NTFS=y USBEXTRAS=y EBTABLES=y t=y IPV6SUPP=y B=L BUILD_DESC="LOY" USB="USB" BTCLIENT=y TR_EXTRAS=y PPTPD=y LOY=y 
+endif
+
 #################################
 
 ifeq ($(CONFIG_LINUX26),y)
@@ -1025,6 +1035,10 @@ r2v:
 r2m:
 	@$(MAKE) m MIPS32=r2
 
+# Loy custmized
+r2l:
+	@$(MAKE) l MIPS32=r2
+	
 #Linksys E-series witk 60K NVRAM builds
 n60z:
 	@$(MAKE) r2z NVRAM_SIZE=60 LINKSYS_E=y
@@ -1247,6 +1261,7 @@ ifeq ($(CONFIG_LINUX26),y)
 	@echo "r2i          MIPS Release 2 MiniIPv6 (for 4MB flash)"
 	@echo "r2j          MIPS Release 2 MiniVPN (for 4MB flash)"
 	@echo "r2f          MIPS Release 2 Mini (for netgear)"
+	@echo "r2l          MIPS Release 2 Loy Custmized (TR,PPTPD)"
 	@echo "       Linksys E-Series with 4MB Flash(E1000v2/v2.1/E1200v1)"
 	@echo "e1000v2f     Linksys E1000v2-v2.1/Cisco M10v2 Mini"
 	@echo "e1200v1f     Linksys E1200v1 Mini"
