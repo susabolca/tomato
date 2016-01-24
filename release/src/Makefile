@@ -37,7 +37,8 @@ include ./target.mak
 
 # Normally you'd do something like "make V1=8516 V2=-sub-ver a b c d"
 # But if you don't give anything for "V1", it'll get a default from tomato_version.
-V1 ?= "--def"
+V1 ?= 115-
+V2 ?= $(shell date "+-%y%m%d")
 VPN ?= "VPN"
 ifeq ($(CONFIG_LINUX26),y)
 ifeq ($(CONFIG_BCMWL6),y)
