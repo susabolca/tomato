@@ -194,6 +194,7 @@ obj-$(TCONFIG_BBT) += zlib
 obj-$(TCONFIG_LOY) += lrzsz
 obj-$(TCONFIG_LOY) += zlib
 obj-$(TCONFIG_LOY) += file
+obj-$(TCONFIG_LOY) += strace
 
 obj-$(CONFIG_LINUX26) += hotplug2
 obj-$(CONFIG_LINUX26) += udevtrigger
@@ -2085,6 +2086,26 @@ file-install: file
 	install -D file/magic/magic.mgc $(INSTALLDIR)/file/usr/share/misc/magic.mgc
 	install -D file/src/file $(INSTALLDIR)/file/usr/bin/file
 	$(STRIP) -s $(INSTALLDIR)/file/usr/bin/file
+
+strace/stamp-h1: 
+	cd strace && \
+	CC=$(CC) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
+	$(CONFIGURE) --target=mipsel-linux --prefix=/usr
+	touch strace/stamp-h1
+
+strace: strace/stamp-h1
+	@$(SEP)
+	$(MAKE) -C strace
+
+strace-clean:
+	-@$(MAKE) -C strace clean
+	@rm -f strace/stamp-h1
+
+strace-install:
+	@$(SEP)
+	install -d $(INSTALLDIR)/strace/usr/bin
+	install -D strace/strace $(INSTALLDIR)/strace/usr/bin/strace
+	$(STRIP) -s $(INSTALLDIR)/strace/usr/bin/strace
 
 #
 # Generic rules
