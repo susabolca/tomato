@@ -410,7 +410,7 @@ sub genSO
 	
 	$before = -s $so;
 
-	system($cmd);
+	#system($cmd);
 	if ($? != 0) {
 		error("ld returned $?");
 	}

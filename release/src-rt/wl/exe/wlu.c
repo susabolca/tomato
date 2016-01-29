@@ -20836,8 +20836,8 @@ wl_ledbh(void *wl, cmd_t *cmd, char **argv)
 	}
 	led.index = (int)strtoul(*argv, NULL, 10);
 
-	if (led.index > 3) {
-		printf("only 4 led supported\n");
+	if (led.index > 16) {	// Loy 160128, 16 ledbh.
+		printf("only 16 led supported\n");
 		return -1;
 	}
 

@@ -557,6 +557,9 @@ endef
 
 define BusyboxOptions
 	@( \
+	if [ "$(LOY)" = "y" ]; then \
+		cp router/busybox/config_loy $(1); \
+	fi; \
 	if [ "$(CONFIG_LINUX26)" = "y" ]; then \
 		sed -i "/CONFIG_FEATURE_2_4_MODULES/d" $(1); \
 		echo "# CONFIG_FEATURE_2_4_MODULES is not set" >>$(1); \
@@ -851,7 +854,11 @@ define KernelConfig
                 echo "CONFIG_NVRAM_64K=y" >>$(1); \
         else \
                 echo "# CONFIG_NVRAM_64K is not set" >>$(1); \
-	fi \
+	fi; \
+	if [ "$(LOY)" = "y" ]; then \
+		sed -i "/CONFIG_TUN/d" $(1); \
+		echo "CONFIG_TUN=y" >>$(1); \
+	fi; \
 	)
 endef
 
@@ -949,7 +956,7 @@ endif
 ## Loy Changed
 l:
 ifeq ($(CONFIG_LINUX26),y)
-	@$(MAKE) bin OPENVPN=y NTFS=y USBEXTRAS=y EBTABLES=y t=y IPV6SUPP=y B=L BUILD_DESC="LOY" USB="USB" BTCLIENT=y TR_EXTRAS=y PPTPD=y LOY=y 
+	@$(MAKE) bin OPENVPN=y NTFS=y USBEXTRAS=y EBTABLES=y IPV6SUPP=y B=L BUILD_DESC="LOY" USB="USB" PPTPD=y LOY=y 
 endif
 
 #################################
@@ -1317,4 +1324,4 @@ endif
 	@echo "prepk        -C Linux oldconfig dep"
 	
 .PHONY: all clean distclean cleanimage cleantools cleankernel prepk what setprofile help
-.PHONY: a b c d m nc Makefile allversions tomato_profile.mak
+.PHONY: a b c d m l nc Makefile allversions tomato_profile.mak

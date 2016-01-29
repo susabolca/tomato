@@ -8,16 +8,16 @@
 
 int gpio_main(int argc, char *argv[])
 {
-	const char hex[] = "0123456789ABCDEF";
+	const char hex[] = "12345678";
 	unsigned long v;
 	int bit;
 	int i;
-	char s[17];
+	char s[40], *ptr;
 	int f;
 
 	if ((argc == 3) && ((strncmp(argv[1], "en", 2) == 0) || (strncmp(argv[1], "di", 2) == 0))) {
 		bit = atoi(argv[2]);
-		if ((bit >= 0) && (bit <= 20)) {
+		if ((bit >= 0) && (bit <= 32)) {	// Loy 160128, 32 bits gpio.
 			bit = 1 << bit;
 			{
 				gpio_write(bit, argv[1][0] == 'e');
@@ -38,11 +38,17 @@ int gpio_main(int argc, char *argv[])
 				return 0;
 			}
 			while ((v = _gpio_read(f)) != ~0) {
-				for (i = 15; i >= 0; --i) {
-					s[i] = (v & (1 << i)) ? hex[i] : '.';
+				ptr = s;
+				for (i=31; i>=0; i--) { 	// Loy 160128, 32 bits gpio.
+					*ptr = (v & (1 << i)) ? hex[i%8] : '.';
+					ptr++;
+					if (i%8 == 0) {
+						*ptr = ' ';
+						ptr++;
+					}
 				}
-				s[16] = 0;
-				printf("%08lX %s\n", v, s);
+				*ptr = 0;
+				printf("%08lX: %s\n", v, s);
 				sleep(1);
 			}
 			close(f);
