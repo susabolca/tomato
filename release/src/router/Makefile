@@ -192,6 +192,8 @@ obj-$(TCONFIG_BBT) += zlib
 #obj-$(TCONFIG_BBT) += libiconv
 
 obj-$(TCONFIG_LOY) += lrzsz
+obj-$(TCONFIG_LOY) += zlib
+obj-$(TCONFIG_LOY) += file
 
 obj-$(CONFIG_LINUX26) += hotplug2
 obj-$(CONFIG_LINUX26) += udevtrigger
@@ -1427,6 +1429,11 @@ ifeq ($(TCONFIG_TOR),y)
 	install -D zlib/libz.so.1 $(INSTALLDIR)/zlib/usr/lib/
 	$(STRIP) $(INSTALLDIR)/zlib/usr/lib/libz.so.1
 endif
+ifeq ($(TCONFIG_LOY),y)
+	install -d $(INSTALLDIR)/zlib/usr/lib
+	install -D zlib/libz.so.1 $(INSTALLDIR)/zlib/usr/lib/
+	$(STRIP) $(INSTALLDIR)/zlib/usr/lib/libz.so.1
+endif
 
 libid3tag/stamp-h1: zlib
 	cd libid3tag && \
@@ -2054,6 +2061,30 @@ lrzsz-install: lrzsz
 	install -D lrzsz/src/lsz $(INSTALLDIR)/lrzsz/usr/bin/sz
 	$(STRIP) -s $(INSTALLDIR)/lrzsz/usr/bin/rz
 	$(STRIP) -s $(INSTALLDIR)/lrzsz/usr/bin/sz
+
+file/stamp-h1: zlib
+	cd file && \
+	CC=$(CC) CFLAGS="-Os -Wall $(EXTRACFLAGS) -I$(TOP)/zlib" \
+	LDFLAGS="-L$(TOP)/zlib" \
+	CPPFLAGS="-L$(TOP)/zlib" \
+	$(CONFIGURE) --target=mipsel-linux --prefix=/usr --disable-shared
+	touch file/stamp-h1
+
+file: file/stamp-h1
+	@$(SEP)
+	$(MAKE) -C file
+	
+file-clean:
+	-@$(MAKE) -C file clean
+	@rm -f file/stamp-h1
+
+file-install: file
+	@$(SEP)
+	install -d $(INSTALLDIR)/file/usr/bin
+	install -d $(INSTALLDIR)/file/usr/share/misc
+	install -D file/magic/magic.mgc $(INSTALLDIR)/file/usr/share/misc/magic.mgc
+	install -D file/src/file $(INSTALLDIR)/file/usr/bin/file
+	$(STRIP) -s $(INSTALLDIR)/file/usr/bin/file
 
 #
 # Generic rules
