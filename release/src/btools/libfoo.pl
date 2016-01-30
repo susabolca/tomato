@@ -197,6 +197,9 @@ sub fixDyn
 	fixDynDep("nas", "libc.so.0");
 	fixDynDep("wl", "libc.so.0");
 
+	# Loy changed, add tcpdump needs libpcap.
+	fixDynDep("tcpdump", "libpcap.so.1.5.3");
+
 #Roadkill for NocatSplash
 	fixDynDep("splashd","libglib-1.2.so.0.0.10");
 }

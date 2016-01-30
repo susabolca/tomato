@@ -195,6 +195,8 @@ obj-$(TCONFIG_LOY) += lrzsz
 obj-$(TCONFIG_LOY) += zlib
 obj-$(TCONFIG_LOY) += file
 obj-$(TCONFIG_LOY) += strace
+obj-$(TCONFIG_LOY) += libpcap
+obj-$(TCONFIG_LOY) += tcpdump
 
 obj-$(CONFIG_LINUX26) += hotplug2
 obj-$(CONFIG_LINUX26) += udevtrigger
@@ -2040,7 +2042,7 @@ comgt-install: comgt
 comgt-clean:
 	-@$(MAKE) -C comgt clean
 
-## Loy Changed.
+## Loy Changed __BEGIN__ 
 lrzsz/stamp-h1:
 	cd lrzsz && \
 	CC=$(CC) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
@@ -2101,11 +2103,60 @@ strace-clean:
 	-@$(MAKE) -C strace clean
 	@rm -f strace/stamp-h1
 
-strace-install:
+strace-install: strace
 	@$(SEP)
 	install -d $(INSTALLDIR)/strace/usr/bin
 	install -D strace/strace $(INSTALLDIR)/strace/usr/bin/strace
 	$(STRIP) -s $(INSTALLDIR)/strace/usr/bin/strace
+
+libpcap/stamp-h1: 
+	cd libpcap && \
+	CC=$(CC) CFLAGS="-Os -Wall $(EXTRACFLAGS)" \
+	$(CONFIGURE) --target=mipsel-linux --prefix=/usr --with-pcap=linux 
+	touch libpcap/stamp-h1
+
+libpcap: libpcap/stamp-h1
+	@$(SEP)
+	$(MAKE) -C libpcap libpcap.so
+	cd libpcap && \
+	ln -sf libpcap.so.1.5.3 libpcap.so.1 && \
+	ln -sf libpcap.so.1.5.3 libpcap.so
+
+libpcap-clean:
+	-@$(MAKE) -C libpcap clean
+	@rm -f libpcap/stamp-h1
+
+libpcap-install: libpcap
+	@$(SEP)
+	install -d $(INSTALLDIR)/libpcap/usr/lib
+	install -D libpcap/libpcap.so.1.5.3 $(INSTALLDIR)/libpcap/usr/lib/libpcap.so.1.5.3
+	$(STRIP) -s $(INSTALLDIR)/libpcap/usr/lib/libpcap.so.1.5.3
+	cd $(INSTALLDIR)/libpcap/usr/lib/ && \
+	ln -sf libpcap.so.1.5.3 libpcap.so.1 && \
+	ln -sf libpcap.so.1.5.3 libpcap.so
+
+tcpdump/stamp-h1: libpcap
+	cd tcpdump && \
+	CC=$(CC) CFLAGS="-Os -Wall $(EXTRACFLAGS) -I$(TOP)/libpcap/" \
+	LDFLAGS="-L$(TOP)/libpcap/" \
+	$(CONFIGURE) --target=mipsel-linux --prefix=/usr ac_cv_linux_vers=2
+	touch tcpdump/stamp-h1
+
+tcpdump: tcpdump/stamp-h1
+	@$(SEP)
+	$(MAKE) -C tcpdump
+
+tcpdump-clean:
+	-@$(MAKE) -C tcpdump clean
+	@rm -f tcpdump/stamp-h1
+
+tcpdump-install: tcpdump
+	@$(SEP)
+	install -d $(INSTALLDIR)/tcpdump/usr/sbin
+	install -D tcpdump/tcpdump $(INSTALLDIR)/tcpdump/usr/sbin/tcpdump
+	$(STRIP) -s $(INSTALLDIR)/tcpdump/usr/sbin/tcpdump
+
+## Loy Changed __END__ 
 
 #
 # Generic rules
