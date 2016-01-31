@@ -279,6 +279,12 @@ int get_model(void)
 		}
 	}
 */
+	// Loy changed, HG320 with NR235W's CFE, hard code.
+	if (hw == HW_BCM5357) {
+		if (nvram_match("devid", "0x4347")) {
+			return MODEL_HG320;
+		}
+	}
 
 #ifdef CONFIG_BCMWL5
 	if (hw == HW_BCM4718) {

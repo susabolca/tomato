@@ -215,6 +215,7 @@ int do_led(int which, int mode)
 	static int rtn66u[]	= { 255, -12,   255,  255,  255,  255,  255,   15,     13};
 	static int w1800r[]     = { 255, -13,   255,  255,  255,  255,  255,  -12,     -5};
 #endif
+	static int hg320[]	= { 255,  24,   255,  255,  255,   6,   7,   9,    255};	// Loy changed, HG320's LEDs
 
 	char s[16];
 	int n;
@@ -424,6 +425,9 @@ int do_led(int which, int mode)
 	case MODEL_WRT160Nv1:
 		b = wrt160nv1[which];
 		break;
+	case MODEL_HG320:
+		b = hg320[which];
+		break;
 	default:
 		sprintf(s, "led_%s", led_names[which]);
 		if (nvget_gpio(s, &b, &n)) {
@@ -444,7 +448,7 @@ int do_led(int which, int mode)
 	}
 
 SET:
-	if (b < 16) {
+	if (b < 30) {	// Loy Changed, gpio index >16.
 		if (mode != LED_PROBE) {
 			gpio_write(1 << b, mode);
 
